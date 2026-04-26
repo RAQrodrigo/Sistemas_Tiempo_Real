@@ -424,6 +424,7 @@ void vTaskSem3(void *Semparameters){
         xSemaphoreTake(xSemaforoBoton3, portMAX_DELAY);
         HAL_GPIO_TogglePin(boton->port, boton->pin);
         HAL_Delay(200);
+        xSemaphoreGive(xSemaforoBoton);
     }
 }
 
