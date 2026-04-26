@@ -59,6 +59,8 @@ const osThreadAttr_t defaultTask_attributes = {
 };
 /* USER CODE BEGIN PV */
 SemaphoreHandle_t xSemaforoBoton;
+SemaphoreHandle_t xSemaforoBoton2;
+SemaphoreHandle_t xSemaforoBoton3;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,6 +74,8 @@ void vTaskLedB(void *pvParameters);
 void vTaskBoton(void *Bparameters);
 void vTaskLedU (void *pvParameters);
 void vTaskSem(void *Semparameters);
+void vTaskSem2(void *Semparameters);
+void vTaskSem3(void *Semparameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -110,19 +114,21 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 	  xSemaforoBoton = xSemaphoreCreateBinary();
+	  xSemaforoBoton2 = xSemaphoreCreateBinary();
+	  xSemaforoBoton3 = xSemaphoreCreateBinary();
 
-	  if (xSemaforoBoton == NULL)
+	  if (xSemaforoBoton == NULL || xSemaforoBoton2 == NULL || xSemaforoBoton3 == NULL )
 	  {
 		  Error_Handler();
 	  }
 
-  	  static TaskParams_t paramsTask1 = {500, GPIOD, LD3_Pin, 0, LD4_Pin};            // LED B
-  	  //static TaskParams_t paramsTask2 = {500, GPIOD, LD4_Pin, GPIOA, BOTON_Pin};    // LED A (con botón)
-     //static TaskParams_t paramsBoton = {0, GPIOD, LD5_Pin, GPIOA, B1_Pin};
-  	  //xTaskCreate(vTaskLedA, "LED_A", 128, &paramsTask2, 1, NULL);
-  	  //xTaskCreate(vTaskLedB, "LED_B", 128, &paramsTask1, 1, NULL);
-  	  xTaskCreate(vTaskSem, "Sem", 128, &paramsTask1, 1, NULL);
-     //xTaskCreate(vTaskBoton, "BOTON", 128, &paramsBoton , 2, NULL);
+  	  static TaskParams_t paramsTask1 = {0, GPIOD, LD3_Pin, 0, 0};            // LED B
+  	  static TaskParams_t paramsTask2 = {0, GPIOD, LD4_Pin, 0, 0};
+  	  static TaskParams_t paramsTask3 = {0, GPIOD, LD5_Pin, 0, 0};
+
+  	  xTaskCreate(vTaskSem, "Sem1", 128, &paramsTask1, 1, NULL);
+  	  xTaskCreate(vTaskSem2, "Sem2", 128, &paramsTask2, 1, NULL);
+  	  xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
 
   	  vTaskStartScheduler();
   /* USER CODE END 2 */
@@ -385,60 +391,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     }
 }
 
-void vTaskLedA(void *pvParameters) {
-    TaskParams_t *task = (TaskParams_t *) pvParameters;
-
-    UBaseType_t uxPrioridadNormal = uxTaskPriorityGet(NULL);
-    TickType_t tiempoFin = 0;
-    BaseType_t prioridadAltaActiva = pdFALSE;
-
-    while (1) {
-        // Si el botón está presionado
-    	if (prioridadAltaActiva && xTaskGetTickCount() >= tiempoFin) {
-    	            vTaskPrioritySet(NULL, uxPrioridadNormal);
-    	            prioridadAltaActiva = pdFALSE;
-    	}
-        if (HAL_GPIO_ReadPin(task->btn_port, task->btn_pin) == GPIO_PIN_SET) {
-            // 1. SUBIR PRIORIDAD: Nos volvemos "los más importantes" (Prioridad 4)
-            vTaskPrioritySet(NULL, 3);
-            tiempoFin = xTaskGetTickCount() + pdMS_TO_TICKS(3000);
-
-            prioridadAltaActiva = pdTRUE;
-        }
-
-        HAL_GPIO_TogglePin(task->port, task->pin);
-        //vTaskDelay(pdMS_TO_TICKS(task->delay));
-        HAL_Delay(500);
-    }
-}
-
-void vTaskLedB(void *pvParameters){
-    TaskParams_t *task = (TaskParams_t *) pvParameters;
-
-    //TickType_t xDelay = pdMS_TO_TICKS(task->delay);
-    while (1){
-    	vTaskDelay(pdMS_TO_TICKS(task->delay));
-        HAL_GPIO_TogglePin(task->port, task->pin);
-    }
-}
-
-void vTaskBoton(void *Bparameters){
-    TaskParams_t *boton = (TaskParams_t *) Bparameters;
-
-    while(1){
-        // Si el botón está presionado (SET)
-        if (HAL_GPIO_ReadPin(boton->btn_port, boton->btn_pin) == GPIO_PIN_SET) {
-            HAL_GPIO_WritePin(boton->port, boton->pin, GPIO_PIN_SET);
-        }
-        // "elif" en C se escribe "else if"
-        // Si el botón NO está presionado (RESET)
-        else if (HAL_GPIO_ReadPin(boton->btn_port, boton->btn_pin) == GPIO_PIN_RESET) {
-            HAL_GPIO_WritePin(boton->port, boton->pin, GPIO_PIN_RESET);
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
-}
 
 void vTaskSem(void *Semparameters){
     TaskParams_t *boton = (TaskParams_t *) Semparameters;
@@ -448,8 +400,34 @@ void vTaskSem(void *Semparameters){
         xSemaphoreTake(xSemaforoBoton, portMAX_DELAY);
         HAL_GPIO_TogglePin(boton->port, boton->pin);
         HAL_Delay(200);
+        xSemaphoreGive(xSemaforoBoton2);
     }
 }
+
+void vTaskSem2(void *Semparameters){
+    TaskParams_t *boton = (TaskParams_t *) Semparameters;
+
+    while(1){
+        // Espera hasta que la ISR dé el semáforo
+        xSemaphoreTake(xSemaforoBoton2, portMAX_DELAY);
+        HAL_GPIO_TogglePin(boton->port, boton->pin);
+        HAL_Delay(200);
+        xSemaphoreGive(xSemaforoBoton3);
+    }
+}
+
+void vTaskSem3(void *Semparameters){
+    TaskParams_t *boton = (TaskParams_t *) Semparameters;
+
+    while(1){
+        // Espera hasta que la ISR dé el semáforo
+        xSemaphoreTake(xSemaforoBoton3, portMAX_DELAY);
+        HAL_GPIO_TogglePin(boton->port, boton->pin);
+        HAL_Delay(200);
+    }
+}
+
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */

@@ -64,8 +64,8 @@ all: main-build
 main-build: Guia1buena.elf secondary-outputs
 
 # Tool invocations
-Guia1buena.elf Guia1buena.map: $(OBJS) $(USER_OBJS) C:\Users\Rodri\Documents\Facultad\Fisica\Guia1buena\STM32F411VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Guia1buena.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Rodri\Documents\Facultad\Fisica\Guia1buena\STM32F411VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Guia1buena.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Guia1buena.elf Guia1buena.map: $(OBJS) $(USER_OBJS) C:\Users\Rodri\Documents\Facultad\Sist\ de\ tiempo\ real\Sistemas_Tiempo_Real\STM32F411VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Guia1buena.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Rodri\Documents\Facultad\Sist de tiempo real\Sistemas_Tiempo_Real\STM32F411VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Guia1buena.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
