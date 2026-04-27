@@ -57,11 +57,15 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+
+volatile BaseType_t xTaskAifSuspended = pdFALSE;
+TaskHandle_t xTaskBHandle = NULL;
+
 /* USER CODE BEGIN PV */
-//SemaphoreHandle_t xSemaforoBoton;
+SemaphoreHandle_t xSemaforo;
 //SemaphoreHandle_t xSemaforoBoton2;
 //SemaphoreHandle_t xSemaforoBoton3;
-SemaphoreHandle_t xMutex;
+//SemaphoreHandle_t xMutex;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,11 +76,7 @@ void StartDefaultTask(void *argument);
 /* USER CODE BEGIN PFP */
 void vTaskA(void *pvParameters);
 void vTaskB(void *pvParameters);
-void vTaskBoton(void *Bparameters);
-void vTaskLedU (void *pvParameters);
 void vTaskSem(void *Semparameters);
-void vTaskSem2(void *Semparameters);
-void vTaskSem3(void *Semparameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -114,18 +114,18 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-  	  xMutex = xSemaphoreCreateMutex();
+	xSemaforo = xSemaphoreCreateBinary();
 
-  	if (xMutex == NULL){
-		  Error_Handler();
-	  }
+	if (xSemaforo == NULL) {
+	  Error_Handler();
+	}
 
-  		xTaskCreate(vTaskB, "Sem2", 256, NULL, 1, NULL);
-  	  xTaskCreate(vTaskA, "Sem1", 256, NULL, 1, NULL);
+	xTaskCreate(vTaskA, "Sem1", 256, NULL, 1, &xTaskBHandle);
+	xTaskCreate(vTaskB, "Sem2", 256, NULL, 1, NULL);
 
-  	  //xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
+	//xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
 
-  	  vTaskStartScheduler();
+	vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -365,7 +365,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/*
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == GPIO_PIN_0)
@@ -373,23 +373,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         static TickType_t lastInterruptTime = 0;
         TickType_t currentTime = xTaskGetTickCountFromISR();
 
-        if ((currentTime - lastInterruptTime) > pdMS_TO_TICKS(200))
-        {
+        if ((currentTime - lastInterruptTime) > pdMS_TO_TICKS(200)){
             BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-            xSemaphoreGiveFromISR(xSemaforoBoton, &xHigherPriorityTaskWoken);
+            xSemaphoreGiveFromISR(xSemaforo, &xHigherPriorityTaskWoken);
 
             portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
-            lastInterruptTime = currentTime;
-        }
     }
 }
-*/
+}
+
 
 void vTaskA(void *pvParameters){
 	while(1){
-		xSemaphoreTake(xMutex, portMAX_DELAY);
 
 		HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
 		HAL_Delay(200);
@@ -407,37 +403,30 @@ void vTaskA(void *pvParameters){
 		HAL_Delay(200);
 		HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
 
-		xSemaphoreGive(xMutex);
-		vTaskDelay(pdMS_TO_TICKS(200));
+		HAL_Delay(200);
 
 	}
 }
+
+
 
 void vTaskB(void *pvParameters){
-	int parpadeo;
 
-	while(1){
-	    xSemaphoreTake(xMutex, portMAX_DELAY);
-	    for (parpadeo = 0; parpadeo < 5; parpadeo++){
-	        HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
-	        HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
-	        HAL_GPIO_TogglePin(GPIOD, LD6_Pin);
-	        HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
-
-	        HAL_Delay(200);
-
-	        HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
-	        HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
-	        HAL_GPIO_TogglePin(GPIOD, LD6_Pin);
-	        HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
-
-	        HAL_Delay(200);
-	    }
-	    xSemaphoreGive(xMutex);
-	    vTaskDelay(pdMS_TO_TICKS(200));
-	}
-
-}
+    while(1){
+    	xSemaphoreTake(xSemaforo, portMAX_DELAY);
+            if (xTaskAifSuspended == pdTRUE)
+            {
+            	vTaskResume(xTaskBHandle);
+            	xTaskAifSuspended = pdFALSE;
+            }
+            else
+            {
+                vTaskSuspend(xTaskBHandle);
+                xTaskAifSuspended = pdTRUE;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
 
 /* USER CODE END 4 */
 
