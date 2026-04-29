@@ -1,9 +1,8 @@
 ../Core/Src/main.c:91:5:main	16	static
-../Core/Src/main.c:182:6:SystemClock_Config	88	static
-../Core/Src/main.c:224:13:MX_GPIO_Init	56	static
-../Core/Src/main.c:369:6:HAL_GPIO_EXTI_Callback	24	static,ignoring_inline_asm
-../Core/Src/main.c:387:6:vTaskA	16	static
-../Core/Src/main.c:413:6:vTaskB	16	static
-../Core/Src/main.c:440:6:StartDefaultTask	16	static
-../Core/Src/main.c:459:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/main.c:477:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/main.c:177:6:SystemClock_Config	88	static
+../Core/Src/main.c:219:13:MX_GPIO_Init	56	static
+../Core/Src/main.c:382:6:vTaskA	16	static
+../Core/Src/main.c:405:6:vTaskB	24	static
+../Core/Src/main.c:468:6:StartDefaultTask	16	static
+../Core/Src/main.c:487:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:505:6:Error_Handler	4	static,ignoring_inline_asm

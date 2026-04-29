@@ -114,13 +114,8 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-	xSemaforo = xSemaphoreCreateBinary();
 
-	if (xSemaforo == NULL) {
-	  Error_Handler();
-	}
-
-	xTaskCreate(vTaskA, "Sem1", 256, NULL, 1, &xTaskBHandle);
+	xTaskCreate(vTaskA, "Sem1", 256, NULL, 2, &xTaskBHandle);
 	xTaskCreate(vTaskB, "Sem2", 256, NULL, 1, NULL);
 
 	//xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
@@ -365,7 +360,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+/*
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == GPIO_PIN_0)
@@ -382,51 +377,84 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     }
 }
 }
-
+*/
 
 void vTaskA(void *pvParameters){
 	while(1){
 
+		HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
+		HAL_Delay(5000);
+		HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
+
 		HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
-		HAL_Delay(200);
+		HAL_Delay(4000);
 		HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
 
+		HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
+		HAL_Delay(1000);
 		HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
 		HAL_Delay(200);
 		HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
 
-		HAL_GPIO_TogglePin(GPIOD, LD6_Pin);
-		HAL_Delay(200);
-		HAL_GPIO_TogglePin(GPIOD, LD6_Pin);
-
-		HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
-		HAL_Delay(200);
-		HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
-
-		HAL_Delay(200);
-
+		vTaskDelete(NULL);
 	}
 }
 
 
 
-void vTaskB(void *pvParameters){
+void vTaskB(void *pvParameters)
+{
+    while(1)
+    {
+        // 🔁 Giro (LD3 → LD5 → LD6)
+        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(120));
+        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
 
-    while(1){
-    	xSemaphoreTake(xSemaforo, portMAX_DELAY);
-            if (xTaskAifSuspended == pdTRUE)
-            {
-            	vTaskResume(xTaskBHandle);
-            	xTaskAifSuspended = pdFALSE;
-            }
-            else
-            {
-                vTaskSuspend(xTaskBHandle);
-                xTaskAifSuspended = pdTRUE;
-            }
+        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(120));
+        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);
+
+        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(120));
+        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_RESET);
+
+        // 🔁 Rebote (LD6 → LD5 → LD3)
+        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(120));
+        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_RESET);
+
+        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(120));
+        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);
+
+        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(120));
+        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
+
+        // ✨ Flash conjunto
+        for(int i = 0; i < 3; i++)
+        {
+            HAL_GPIO_WritePin(GPIOD, LD3_Pin|LD5_Pin|LD6_Pin, GPIO_PIN_SET);
+            vTaskDelay(pdMS_TO_TICKS(150));
+
+            HAL_GPIO_WritePin(GPIOD, LD3_Pin|LD5_Pin|LD6_Pin, GPIO_PIN_RESET);
+            vTaskDelay(pdMS_TO_TICKS(150));
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
+
+        // 💫 Efecto “onda”
+        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(150));
+
+        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_SET);
+        vTaskDelay(pdMS_TO_TICKS(150));
+
+        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_RESET);
     }
+}
 
 /* USER CODE END 4 */
 
