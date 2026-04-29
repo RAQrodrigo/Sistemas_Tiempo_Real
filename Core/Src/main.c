@@ -74,9 +74,11 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTaskA(void *pvParameters);
-void vTaskB(void *pvParameters);
-void vTaskSem(void *Semparameters);
+void vTask200(void *pvParameters);
+void vTask400(void *pvParameters);
+void vTask600(void *pvParameters);
+void vTask800(void *pvParameters);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -115,8 +117,15 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
-	xTaskCreate(vTaskA, "Sem1", 256, NULL, 2, &xTaskBHandle);
-	xTaskCreate(vTaskB, "Sem2", 256, NULL, 1, NULL);
+	static TaskParams_t param200 = {200, GPIOD, LD3_Pin,0,0};
+	static TaskParams_t param400 = {400, GPIOD, LD4_Pin,0,0};
+	static TaskParams_t param600 = {600, GPIOD, LD5_Pin,0,0};
+	static TaskParams_t param800 = {800, GPIOD, LD6_Pin,0,0};
+
+	xTaskCreate(vTask200, "Led200", 128, &param200, 1, NULL);
+	xTaskCreate(vTask400, "Led400", 128, &param400, 1, NULL);
+	xTaskCreate(vTask600, "Led600", 128, &param600, 1, NULL);
+	xTaskCreate(vTask800, "Led800", 128, &param800, 1, NULL);
 
 	//xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
 
@@ -379,82 +388,36 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 */
 
-void vTaskA(void *pvParameters){
+void vTask200(void *pvParameters){
+	TaskParams_t *led = (TaskParams_t*) pvParameters;
 	while(1){
-
-		HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
-		HAL_Delay(5000);
-		HAL_GPIO_TogglePin(GPIOD, LD5_Pin);
-
-		HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
-		HAL_Delay(4000);
-		HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
-
-		HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
-		HAL_Delay(1000);
-		HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
-		HAL_Delay(200);
-		HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
-
-		vTaskDelete(NULL);
+		HAL_GPIO_TogglePin(led->port, led->pin);
+		HAL_Delay(led->delay);
 	}
 }
 
-
-
-void vTaskB(void *pvParameters)
-{
-    while(1)
-    {
-        // 🔁 Giro (LD3 → LD5 → LD6)
-        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(120));
-        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
-
-        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(120));
-        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);
-
-        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(120));
-        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_RESET);
-
-        // 🔁 Rebote (LD6 → LD5 → LD3)
-        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(120));
-        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_RESET);
-
-        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(120));
-        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);
-
-        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(120));
-        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
-
-        // ✨ Flash conjunto
-        for(int i = 0; i < 3; i++)
-        {
-            HAL_GPIO_WritePin(GPIOD, LD3_Pin|LD5_Pin|LD6_Pin, GPIO_PIN_SET);
-            vTaskDelay(pdMS_TO_TICKS(150));
-
-            HAL_GPIO_WritePin(GPIOD, LD3_Pin|LD5_Pin|LD6_Pin, GPIO_PIN_RESET);
-            vTaskDelay(pdMS_TO_TICKS(150));
-        }
-
-        // 💫 Efecto “onda”
-        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
-        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(150));
-
-        HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_SET);
-        vTaskDelay(pdMS_TO_TICKS(150));
-
-        HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_RESET);
-    }
+void vTask400(void *pvParameters){
+	TaskParams_t *led = (TaskParams_t *) pvParameters;
+	while(1){
+		HAL_GPIO_TogglePin(led->port, led->pin);
+		HAL_Delay(led->delay);
+	}
 }
+void vTask600(void *pvParameters){
+	TaskParams_t *led = (TaskParams_t *) pvParameters;
+	while(1){
+		HAL_GPIO_TogglePin(led->port, led->pin);
+		HAL_Delay(led->delay);
+	}
+}
+void vTask800(void *pvParameters){
+	TaskParams_t *led = (TaskParams_t *) pvParameters;
+	while(1){
+		HAL_GPIO_TogglePin(led->port, led->pin);
+		HAL_Delay(led->delay);
+	}
+}
+
 
 /* USER CODE END 4 */
 
