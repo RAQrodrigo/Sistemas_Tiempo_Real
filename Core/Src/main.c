@@ -19,9 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "semphr.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -57,12 +54,7 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-
-volatile BaseType_t xTaskAifSuspended = pdFALSE;
-TaskHandle_t xTaskBHandle = NULL;
-
 /* USER CODE BEGIN PV */
-SemaphoreHandle_t xSemaforo;
 //SemaphoreHandle_t xSemaforoBoton2;
 //SemaphoreHandle_t xSemaforoBoton3;
 //SemaphoreHandle_t xMutex;
@@ -74,11 +66,8 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTask200(void *pvParameters);
-void vTask400(void *pvParameters);
-void vTask600(void *pvParameters);
-void vTask800(void *pvParameters);
-
+void vTaskLed(void *pvParameters);
+void vTaskBoton(void *pvParameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -117,15 +106,11 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
-	static TaskParams_t param200 = {200, GPIOD, LD3_Pin,0,0};
-	static TaskParams_t param400 = {400, GPIOD, LD4_Pin,0,0};
-	static TaskParams_t param600 = {600, GPIOD, LD5_Pin,0,0};
-	static TaskParams_t param800 = {800, GPIOD, LD6_Pin,0,0};
+	static TaskParams_t param500 = {500, GPIOD, LD3_Pin,0,0};
+	static TaskParams_t paramBot = {400, GPIOD, LD4_Pin,GPIOA,GPIO_PIN_0};
 
-	xTaskCreate(vTask200, "Led200", 128, &param200, 1, NULL);
-	xTaskCreate(vTask400, "Led400", 128, &param400, 1, NULL);
-	xTaskCreate(vTask600, "Led600", 128, &param600, 1, NULL);
-	xTaskCreate(vTask800, "Led800", 128, &param800, 1, NULL);
+	xTaskCreate(vTaskLed, "Led500", 128, &param500, 1, NULL);
+	xTaskCreate(vTaskBoton, "LedBot", 128, &paramBot, 3, NULL);
 
 	//xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
 
@@ -133,7 +118,7 @@ int main(void)
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  //osKernelInitialize();
+  osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -153,7 +138,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  //defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -164,7 +149,7 @@ int main(void)
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
-  //osKernelStart();
+  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -286,7 +271,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PA0 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
@@ -359,10 +344,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
-
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
@@ -388,33 +369,27 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 */
 
-void vTask200(void *pvParameters){
+void vTaskLed(void *pvParameters){
 	TaskParams_t *led = (TaskParams_t*) pvParameters;
 	while(1){
 		HAL_GPIO_TogglePin(led->port, led->pin);
-		HAL_Delay(led->delay);
+		 HAL_Delay(led->delay);
 	}
 }
 
-void vTask400(void *pvParameters){
-	TaskParams_t *led = (TaskParams_t *) pvParameters;
+void vTaskBoton(void *pvParameters){
+	TaskParams_t *led = (TaskParams_t*) pvParameters;
 	while(1){
-		HAL_GPIO_TogglePin(led->port, led->pin);
-		HAL_Delay(led->delay);
-	}
-}
-void vTask600(void *pvParameters){
-	TaskParams_t *led = (TaskParams_t *) pvParameters;
-	while(1){
-		HAL_GPIO_TogglePin(led->port, led->pin);
-		HAL_Delay(led->delay);
-	}
-}
-void vTask800(void *pvParameters){
-	TaskParams_t *led = (TaskParams_t *) pvParameters;
-	while(1){
-		HAL_GPIO_TogglePin(led->port, led->pin);
-		HAL_Delay(led->delay);
+        if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET)
+        {
+            HAL_GPIO_WritePin(led->port, led->pin, GPIO_PIN_SET);
+        }
+        else
+        {
+            HAL_GPIO_WritePin(led->port, led->pin, GPIO_PIN_RESET);
+        }
+
+       vTaskDelay(pdMS_TO_TICKS(50));
 	}
 }
 
