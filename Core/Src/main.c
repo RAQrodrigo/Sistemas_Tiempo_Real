@@ -66,8 +66,8 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTaskLed(void *pvParameters);
-void vTaskBoton(void *pvParameters);
+void vTaskA(void *pvParameters);
+void vTaskB(void *pvParameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -106,11 +106,11 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
-	static TaskParams_t param500 = {500, GPIOD, LD3_Pin,0,0};
-	static TaskParams_t paramBot = {400, GPIOD, LD4_Pin,GPIOA,GPIO_PIN_0};
+	static TaskParams_t param500A = {500, GPIOD, LD3_Pin,0,0};
+	static TaskParams_t param500B = {500, GPIOD, LD4_Pin,0,0};
 
-	xTaskCreate(vTaskLed, "Led500", 128, &param500, 1, NULL);
-	xTaskCreate(vTaskBoton, "LedBot", 128, &paramBot, 3, NULL);
+	xTaskCreate(vTaskA, "Led500", 128, &param500A, 1, NULL);
+	xTaskCreate(vTaskB, "Led500", 128, &param500B, 1, NULL);
 
 	//xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
 
@@ -369,27 +369,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 */
 
-void vTaskLed(void *pvParameters){
+void vTaskA(void *pvParameters){
 	TaskParams_t *led = (TaskParams_t*) pvParameters;
 	while(1){
 		HAL_GPIO_TogglePin(led->port, led->pin);
-		 HAL_Delay(led->delay);
+		TickType_t xLastWakeTime = xTaskGetTickCount();
+		HAL_Delay(100);
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(led->delay));
 	}
 }
 
-void vTaskBoton(void *pvParameters){
+void vTaskB(void *pvParameters){
 	TaskParams_t *led = (TaskParams_t*) pvParameters;
 	while(1){
-        if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET)
-        {
-            HAL_GPIO_WritePin(led->port, led->pin, GPIO_PIN_SET);
-        }
-        else
-        {
-            HAL_GPIO_WritePin(led->port, led->pin, GPIO_PIN_RESET);
-        }
-
-       vTaskDelay(pdMS_TO_TICKS(50));
+		HAL_GPIO_TogglePin(led->port, led->pin);
+		HAL_Delay(100);
+		vTaskDelay(pdMS_TO_TICKS(led->delay));
 	}
 }
 
