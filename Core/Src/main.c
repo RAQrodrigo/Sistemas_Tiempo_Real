@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "queue.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -66,8 +67,9 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTaskA(void *pvParameters);
-void vTaskB(void *pvParameters);
+void vTaskProd(void *pvParameters);
+void vTaskCons(void *pvParameters);
+QueueHandle_t xQueue;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -106,13 +108,15 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
-	static TaskParams_t param500A = {500, GPIOD, LD3_Pin,0,0};
-	static TaskParams_t param500B = {500, GPIOD, LD4_Pin,0,0};
+	xQueue = xQueueCreate(5, sizeof(uint16_t));
 
-	xTaskCreate(vTaskA, "Led500", 128, &param500A, 1, NULL);
-	xTaskCreate(vTaskB, "Led500", 128, &param500B, 1, NULL);
+	static TaskParams_t paramProd = {500, 0, 0,GPIOA,GPIO_PIN_0};
+	static TaskParams_t paramCons = {500, GPIOD, LD4_Pin,0,0};
 
-	//xTaskCreate(vTaskSem3, "Sem3", 128, &paramsTask3, 1, NULL);
+	xTaskCreate(vTaskProd, "Led500", 128, &paramProd, 1, NULL);
+	xTaskCreate(vTaskCons, "Led500", 128, &paramCons, 1, NULL);
+
+
 
 	vTaskStartScheduler();
   /* USER CODE END 2 */
@@ -350,42 +354,44 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/*
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    if (GPIO_Pin == GPIO_PIN_0)
-    {
-        static TickType_t lastInterruptTime = 0;
-        TickType_t currentTime = xTaskGetTickCountFromISR();
 
-        if ((currentTime - lastInterruptTime) > pdMS_TO_TICKS(200)){
-            BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-            xSemaphoreGiveFromISR(xSemaforo, &xHigherPriorityTaskWoken);
-
-            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-}
-}
-*/
-
-void vTaskA(void *pvParameters){
+void vTaskProd(void *pvParameters){
 	TaskParams_t *led = (TaskParams_t*) pvParameters;
+	uint16_t contador = 0;
 	while(1){
-		HAL_GPIO_TogglePin(led->port, led->pin);
-		TickType_t xLastWakeTime = xTaskGetTickCount();
-		HAL_Delay(100);
-		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(led->delay));
+
+		if (HAL_GPIO_ReadPin(led->btn_port,led->btn_pin)){
+			contador++;
+			if (contador > 15){
+				contador = 0;
+			}
+			//contador = (contador + 1) % 16;
+			xQueueSend(xQueue, &contador, portMAX_DELAY);
+			vTaskDelay(pdMS_TO_TICKS(300));
+		}
 	}
 }
 
-void vTaskB(void *pvParameters){
-	TaskParams_t *led = (TaskParams_t*) pvParameters;
-	while(1){
-		HAL_GPIO_TogglePin(led->port, led->pin);
-		HAL_Delay(100);
-		vTaskDelay(pdMS_TO_TICKS(led->delay));
-	}
+void vTaskCons(void *pvParameters){
+	uint16_t numero;
+	while(1)
+	    {
+	        if (xQueueReceive(xQueue, &numero, portMAX_DELAY) == pdPASS)
+	        {
+	            HAL_GPIO_WritePin(GPIOD, LD4_Pin,
+	                (numero & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+	            HAL_GPIO_WritePin(GPIOD, LD3_Pin,
+	                (numero & 0x02) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+	            HAL_GPIO_WritePin(GPIOD, LD5_Pin,
+	                (numero & 0x04) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+	            HAL_GPIO_WritePin(GPIOD, LD6_Pin,
+	                (numero & 0x08) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+	        }
+	    }
 }
 
 

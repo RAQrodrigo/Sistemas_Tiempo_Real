@@ -38,34 +38,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := Guia1buena
+BUILD_ARTIFACT_NAME := Guia2
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-Guia1buena.elf \
+Guia2.elf \
 
 MAP_FILES += \
-Guia1buena.map \
+Guia2.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-Guia1buena.list \
+Guia2.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: Guia1buena.elf secondary-outputs
+main-build: Guia2.elf secondary-outputs
 
 # Tool invocations
-Guia1buena.elf Guia1buena.map: $(OBJS) $(USER_OBJS) C:\Users\Rodri\Documents\Facultad\Sist\ de\ tiempo\ real\Sistemas_Tiempo_Real\STM32F411VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Guia1buena.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Rodri\Documents\Facultad\Sist de tiempo real\Sistemas_Tiempo_Real\STM32F411VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Guia1buena.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Guia2.elf Guia2.map: $(OBJS) $(USER_OBJS) C:\Users\Rodri\Documents\Facultad\Sist\ de\ tiempo\ real\Sistemas_Tiempo_Real\STM32F411VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Guia2.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Rodri\Documents\Facultad\Sist de tiempo real\Sistemas_Tiempo_Real\STM32F411VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Guia2.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -74,14 +74,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-Guia1buena.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "Guia1buena.list"
+Guia2.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "Guia2.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) Guia1buena.elf Guia1buena.list Guia1buena.map default.size.stdout
+	-$(RM) Guia2.elf Guia2.list Guia2.map default.size.stdout
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
