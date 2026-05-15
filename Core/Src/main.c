@@ -46,6 +46,8 @@ typedef struct{
 	ord orden;
 } instruc;
 
+static instruc cmd;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -119,7 +121,7 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
-	xQueue = xQueueCreate(5, sizeof(instruc));
+	xQueue = xQueueCreate(5, sizeof(instruc*));
 
 	xTaskCreate(vTaskMain, "Main", 128, NULL, 1, NULL);
 	xTaskCreate(vTaskLed, "Led", 128, NULL, 1, NULL);
@@ -365,12 +367,12 @@ static void MX_GPIO_Init(void)
 
 void enviarOrden(uint16_t led, ord orden)
 {
-    instruc cmd;
+    instruc *ptr = &cmd;
 
     cmd.led_pin = led;
     cmd.orden = orden;
 
-    xQueueSend(xQueue, &cmd, portMAX_DELAY);
+    xQueueSend(xQueue, &ptr, portMAX_DELAY);
 }
 
 void vTaskMain(void *pvParameters){
@@ -383,17 +385,19 @@ void vTaskMain(void *pvParameters){
     	vTaskDelay(pdMS_TO_TICKS(100));
 
     	enviarOrden(LD3_Pin, APAGAR);
+    	vTaskDelay(pdMS_TO_TICKS(100));
 
     	enviarOrden(LD4_Pin, ENCENDER);
     	vTaskDelay(pdMS_TO_TICKS(100));
 
     	enviarOrden(LD4_Pin, APAGAR);
+    	vTaskDelay(pdMS_TO_TICKS(100));
 
     	enviarOrden(LD5_Pin, ENCENDER);
     	vTaskDelay(pdMS_TO_TICKS(100));
 
     	enviarOrden(LD5_Pin, APAGAR);
-
+    	vTaskDelay(pdMS_TO_TICKS(100));
     	enviarOrden(LD6_Pin, ENCENDER);
     	vTaskDelay(pdMS_TO_TICKS(100));
 
@@ -405,6 +409,7 @@ void vTaskMain(void *pvParameters){
     	vTaskDelay(pdMS_TO_TICKS(100));
 
     	enviarOrden(LD5_Pin, APAGAR);
+    	vTaskDelay(pdMS_TO_TICKS(100));
 
     	enviarOrden(LD4_Pin, ENCENDER);
     	vTaskDelay(pdMS_TO_TICKS(100));
@@ -414,8 +419,11 @@ void vTaskMain(void *pvParameters){
 
     	// Todos prendidos
     	enviarOrden(LD3_Pin, ENCENDER);
+    	vTaskDelay(pdMS_TO_TICKS(100));
     	enviarOrden(LD4_Pin, ENCENDER);
+    	vTaskDelay(pdMS_TO_TICKS(100));
     	enviarOrden(LD5_Pin, ENCENDER);
+    	vTaskDelay(pdMS_TO_TICKS(100));
     	enviarOrden(LD6_Pin, ENCENDER);
 
     	vTaskDelay(pdMS_TO_TICKS(300));
@@ -423,8 +431,11 @@ void vTaskMain(void *pvParameters){
 
     	// Todos apagados
     	enviarOrden(LD3_Pin, APAGAR);
+    	vTaskDelay(pdMS_TO_TICKS(100));
     	enviarOrden(LD4_Pin, APAGAR);
+    	vTaskDelay(pdMS_TO_TICKS(100));
     	enviarOrden(LD5_Pin, APAGAR);
+    	vTaskDelay(pdMS_TO_TICKS(100));
     	enviarOrden(LD6_Pin, APAGAR);
 
     	vTaskDelay(pdMS_TO_TICKS(300));
@@ -434,15 +445,21 @@ void vTaskMain(void *pvParameters){
     	for(int i = 0; i < 3; i++)
     	{
     	    enviarOrden(LD3_Pin, ENCENDER);
+    	    vTaskDelay(pdMS_TO_TICKS(100));
     	    enviarOrden(LD4_Pin, ENCENDER);
+    	    vTaskDelay(pdMS_TO_TICKS(100));
     	    enviarOrden(LD5_Pin, ENCENDER);
+    	    vTaskDelay(pdMS_TO_TICKS(100));
     	    enviarOrden(LD6_Pin, ENCENDER);
 
     	    vTaskDelay(pdMS_TO_TICKS(150));
 
     	    enviarOrden(LD3_Pin, APAGAR);
+    	    vTaskDelay(pdMS_TO_TICKS(100));
     	    enviarOrden(LD4_Pin, APAGAR);
+    	    vTaskDelay(pdMS_TO_TICKS(100));
     	    enviarOrden(LD5_Pin, APAGAR);
+    	    vTaskDelay(pdMS_TO_TICKS(100));
     	    enviarOrden(LD6_Pin, APAGAR);
 
     	    vTaskDelay(pdMS_TO_TICKS(150));
@@ -450,25 +467,25 @@ void vTaskMain(void *pvParameters){
     }
 }
 
-void vTaskLed(void *pvParameters){
-
-    instruc comand;
+void vTaskLed(void *pvParameters)
+{
+    instruc *comand;
 
     while(1)
     {
         if (xQueueReceive(xQueue, &comand, portMAX_DELAY) == pdPASS)
         {
-            if(comand.orden == ENCENDER)
+            if(comand->orden == ENCENDER)
             {
                 HAL_GPIO_WritePin(GPIOD,
-                                  comand.led_pin,
+                                  comand->led_pin,
                                   GPIO_PIN_SET);
             }
 
-            else if(comand.orden == APAGAR)
+            else if(comand->orden == APAGAR)
             {
                 HAL_GPIO_WritePin(GPIOD,
-                                  comand.led_pin,
+                                  comand->led_pin,
                                   GPIO_PIN_RESET);
             }
         }
