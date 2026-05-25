@@ -20,6 +20,8 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "queue.h"
+#include <stdlib.h>
+#include <time.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -37,16 +39,15 @@ typedef struct {
 } TaskParams_t;
 
 typedef enum{
-    ENCENDER,
-    APAGAR
-} ord;
+    D,
+    I
+} mov;
 
 typedef struct{
 	uint16_t led_pin;
-	ord orden;
+	mov move;
 } instruc;
 
-static instruc cmd;
 
 /* USER CODE END PTD */
 
@@ -80,9 +81,12 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTaskMain(void *pvParameters);
-void vTaskLed(void *pvParameters);
-QueueHandle_t xQueue;
+void vTaskEnv_Modo(void *pvParameters);
+void vTask_Procesadora(void *pvParameters);
+void vTask_Velocidad(void *pvParameters);
+QueueHandle_t Cola_Velocidad;
+QueueHandle_t Cola_Modo;
+QueueSetHandle_t Set_Cola;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -120,11 +124,16 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
+  	srand(HAL_GetTick());
+	Cola_Velocidad = xQueueCreate(5, sizeof(uint32_t));
+	Cola_Modo = xQueueCreate(5, sizeof(mov));
+	Set_Cola = xQueueCreateSet(10);
+	xQueueAddToSet(Cola_Velocidad,Set_Cola);
+	xQueueAddToSet(Cola_Modo,Set_Cola);
 
-	xQueue = xQueueCreate(5, sizeof(instruc*));
-
-	xTaskCreate(vTaskMain, "Main", 128, NULL, 1, NULL);
-	xTaskCreate(vTaskLed, "Led", 128, NULL, 1, NULL);
+	xTaskCreate(vTaskEnv_Modo, "Modo", 128, NULL, 1, NULL);
+	xTaskCreate(vTask_Velocidad, "Vel", 128, NULL, 1, NULL);
+	xTaskCreate(vTask_Procesadora, "Proc", 128, NULL, 1, NULL);
 
 
 
@@ -364,134 +373,98 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void vTaskEnv_Modo(void *pvParameters){
+	mov sentido = D;
 
-void enviarOrden(uint16_t led, ord orden)
+	while (1) {
+		if (HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_0) == GPIO_PIN_SET){
+			vTaskDelay(pdMS_TO_TICKS(20));
+			if (sentido == I){
+					sentido = D;
+				}
+			else {
+					sentido = I;
+				}
+		xQueueSend(Cola_Modo, &sentido, portMAX_DELAY);
+		vTaskDelay(pdMS_TO_TICKS(200));
+		}
+		vTaskDelay(pdMS_TO_TICKS(10));
+	}
+}
+
+void vTask_Velocidad(void *pvParameters){
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+	uint32_t timer = 0;
+	while(1){
+		vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(5000));
+		timer = (rand() % 401) + 100;
+		xQueueSend(Cola_Velocidad, &timer, portMAX_DELAY);
+	}
+}
+
+void JuegoLuces(uint16_t *leds, int pos, uint32_t delay_ms)
 {
-    instruc *ptr = &cmd;
+    HAL_GPIO_WritePin(GPIOD,
+                      LD3_Pin | LD4_Pin | LD5_Pin | LD6_Pin,
+                      GPIO_PIN_RESET);
 
-    cmd.led_pin = led;
-    cmd.orden = orden;
+    HAL_GPIO_WritePin(GPIOD,
+                      leds[pos],
+                      GPIO_PIN_SET);
 
-    xQueueSend(xQueue, &ptr, portMAX_DELAY);
+    vTaskDelay(pdMS_TO_TICKS(delay_ms));
 }
 
-void vTaskMain(void *pvParameters){
+void vTask_Procesadora(void *pvParameters){
+	QueueSetMemberHandle_t Cola;
+	uint16_t leds[4] = {LD3_Pin, LD4_Pin, LD6_Pin, LD5_Pin};
 
+	int pos = 0;
+	mov sentido = D;
 
-    while(1){
+	mov recibido_modo;
+	uint32_t recibido_vel;
 
-    	// Ida
-    	enviarOrden(LD3_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
+	uint32_t delay_led = 200;
+	while(1)
+	{
+	    Cola = xQueueSelectFromSet(Set_Cola, 0);
 
-    	enviarOrden(LD3_Pin, APAGAR);
-    	vTaskDelay(pdMS_TO_TICKS(100));
+	    if (Cola == Cola_Modo)
+	    {
+	        xQueueReceive(Cola_Modo, &recibido_modo, 0);
+	        sentido = recibido_modo;
+	    }
 
-    	enviarOrden(LD4_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
+	    else if (Cola == Cola_Velocidad)
+	    {
+	        xQueueReceive(Cola_Velocidad, &recibido_vel, 0);
+	        delay_led = recibido_vel;
+	    }
 
-    	enviarOrden(LD4_Pin, APAGAR);
-    	vTaskDelay(pdMS_TO_TICKS(100));
+	    JuegoLuces(leds, pos, delay_led);
 
-    	enviarOrden(LD5_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
+	    if(sentido == D)
+	    {
+	        pos++;
 
-    	enviarOrden(LD5_Pin, APAGAR);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-    	enviarOrden(LD6_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
+	        if(pos > 3)
+	        {
+	            pos = 0;
+	        }
+	    }
+	    else
+	    {
+	        pos--;
 
-    	enviarOrden(LD6_Pin, APAGAR);
-
-
-    	// Vuelta
-    	enviarOrden(LD5_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD5_Pin, APAGAR);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD4_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD4_Pin, APAGAR);
-
-
-    	// Todos prendidos
-    	enviarOrden(LD3_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-    	enviarOrden(LD4_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-    	enviarOrden(LD5_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-    	enviarOrden(LD6_Pin, ENCENDER);
-
-    	vTaskDelay(pdMS_TO_TICKS(300));
-
-
-    	// Todos apagados
-    	enviarOrden(LD3_Pin, APAGAR);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-    	enviarOrden(LD4_Pin, APAGAR);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-    	enviarOrden(LD5_Pin, APAGAR);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-    	enviarOrden(LD6_Pin, APAGAR);
-
-    	vTaskDelay(pdMS_TO_TICKS(300));
-
-
-    	// Parpadeo rápido
-    	for(int i = 0; i < 3; i++)
-    	{
-    	    enviarOrden(LD3_Pin, ENCENDER);
-    	    vTaskDelay(pdMS_TO_TICKS(100));
-    	    enviarOrden(LD4_Pin, ENCENDER);
-    	    vTaskDelay(pdMS_TO_TICKS(100));
-    	    enviarOrden(LD5_Pin, ENCENDER);
-    	    vTaskDelay(pdMS_TO_TICKS(100));
-    	    enviarOrden(LD6_Pin, ENCENDER);
-
-    	    vTaskDelay(pdMS_TO_TICKS(150));
-
-    	    enviarOrden(LD3_Pin, APAGAR);
-    	    vTaskDelay(pdMS_TO_TICKS(100));
-    	    enviarOrden(LD4_Pin, APAGAR);
-    	    vTaskDelay(pdMS_TO_TICKS(100));
-    	    enviarOrden(LD5_Pin, APAGAR);
-    	    vTaskDelay(pdMS_TO_TICKS(100));
-    	    enviarOrden(LD6_Pin, APAGAR);
-
-    	    vTaskDelay(pdMS_TO_TICKS(150));
-    	}
-    }
+	        if(pos < 0)
+	        {
+	            pos = 3;
+	        }
+	    }
+	}
 }
-
-void vTaskLed(void *pvParameters)
-{
-    instruc *comand;
-
-    while(1)
-    {
-        if (xQueueReceive(xQueue, &comand, portMAX_DELAY) == pdPASS)
-        {
-            if(comand->orden == ENCENDER)
-            {
-                HAL_GPIO_WritePin(GPIOD,
-                                  comand->led_pin,
-                                  GPIO_PIN_SET);
-            }
-
-            else if(comand->orden == APAGAR)
-            {
-                HAL_GPIO_WritePin(GPIOD,
-                                  comand->led_pin,
-                                  GPIO_PIN_RESET);
-            }
-        }
-    }
-}
-
 
 /* USER CODE END 4 */
 
