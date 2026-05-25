@@ -60,6 +60,7 @@
 #define configENABLE_MPU                         0
 
 #define configUSE_QUEUE_SETS 1
+#define configUSE_QUEUE_OVERWRITE    1
 
 #define configUSE_PREEMPTION                     1
 #define configSUPPORT_STATIC_ALLOCATION          1

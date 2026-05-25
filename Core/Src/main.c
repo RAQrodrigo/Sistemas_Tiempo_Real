@@ -38,16 +38,6 @@ typedef struct {
     uint16_t btn_pin;
 } TaskParams_t;
 
-typedef enum{
-    D,
-    I
-} mov;
-
-typedef struct{
-	uint16_t led_pin;
-	mov move;
-} instruc;
-
 
 /* USER CODE END PTD */
 
@@ -81,12 +71,12 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTaskEnv_Modo(void *pvParameters);
-void vTask_Procesadora(void *pvParameters);
-void vTask_Velocidad(void *pvParameters);
-QueueHandle_t Cola_Velocidad;
-QueueHandle_t Cola_Modo;
-QueueSetHandle_t Set_Cola;
+void vTaskCons1(void *pvParameters);
+void vTaskCons2(void *pvParameters);
+void vTaskProd(void *pvParameters);
+
+QueueHandle_t Cola_Global;
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -124,16 +114,15 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-  	srand(HAL_GetTick());
-	Cola_Velocidad = xQueueCreate(5, sizeof(uint32_t));
-	Cola_Modo = xQueueCreate(5, sizeof(mov));
-	Set_Cola = xQueueCreateSet(10);
-	xQueueAddToSet(Cola_Velocidad,Set_Cola);
-	xQueueAddToSet(Cola_Modo,Set_Cola);
+  	Cola_Global = xQueueCreate(1,sizeof(uint16_t));
 
-	xTaskCreate(vTaskEnv_Modo, "Modo", 128, NULL, 1, NULL);
-	xTaskCreate(vTask_Velocidad, "Vel", 128, NULL, 1, NULL);
-	xTaskCreate(vTask_Procesadora, "Proc", 128, NULL, 1, NULL);
+
+	static TaskParams_t varcons1 = {0, GPIOD, LD3_Pin, 0, 0};
+	static TaskParams_t varcons2 = {0, GPIOD, LD4_Pin, 0, 0};
+
+	xTaskCreate(vTaskCons1, "Par", 128, &varcons1, 1, NULL);
+	xTaskCreate(vTaskCons2, "Impar", 128, &varcons2, 1, NULL);
+	xTaskCreate(vTaskProd, "Prod", 128, NULL, 1, NULL);
 
 
 
@@ -373,98 +362,73 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void vTaskEnv_Modo(void *pvParameters){
-	mov sentido = D;
+void vTaskProd(void *pvParameters){
+	uint16_t counter = 0;
 
 	while (1) {
 		if (HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_0) == GPIO_PIN_SET){
-			vTaskDelay(pdMS_TO_TICKS(20));
-			if (sentido == I){
-					sentido = D;
-				}
-			else {
-					sentido = I;
-				}
-		xQueueSend(Cola_Modo, &sentido, portMAX_DELAY);
-		vTaskDelay(pdMS_TO_TICKS(200));
+			vTaskDelay(pdMS_TO_TICKS(60));
+			counter++;
+			xQueueOverwrite(Cola_Global, &counter);
+			vTaskDelay(pdMS_TO_TICKS(60));
 		}
-		vTaskDelay(pdMS_TO_TICKS(10));
 	}
 }
 
-void vTask_Velocidad(void *pvParameters){
-    TickType_t xLastWakeTime;
-    xLastWakeTime = xTaskGetTickCount();
-	uint32_t timer = 0;
-	while(1){
-		vTaskDelayUntil(&xLastWakeTime,pdMS_TO_TICKS(5000));
-		timer = (rand() % 401) + 100;
-		xQueueSend(Cola_Velocidad, &timer, portMAX_DELAY);
-	}
+
+void vTaskCons1(void *pvParameters){
+    TaskParams_t *task = (TaskParams_t *) pvParameters;
+    uint16_t dato_mirado; // dato que vamos a ver en la cola
+    uint16_t dato_basura; // dato para guardar y sacar el dato que miramos de la cola
+
+    while(1){
+
+        if (xQueuePeek(Cola_Global, &dato_mirado, portMAX_DELAY) == pdPASS) {
+
+            if (dato_mirado % 2 == 0) {
+
+                xQueueReceive(Cola_Global, &dato_basura, 0);
+
+                HAL_GPIO_TogglePin(task->port, task->pin);
+                vTaskDelay(pdMS_TO_TICKS(100));
+                HAL_GPIO_TogglePin(task->port, task->pin);
+            }
+            else {
+
+                vTaskDelay(pdMS_TO_TICKS(20)); // para darle tiempo a la otra tarea
+            }
+        }
+    }
 }
 
-void JuegoLuces(uint16_t *leds, int pos, uint32_t delay_ms)
-{
-    HAL_GPIO_WritePin(GPIOD,
-                      LD3_Pin | LD4_Pin | LD5_Pin | LD6_Pin,
-                      GPIO_PIN_RESET);
 
-    HAL_GPIO_WritePin(GPIOD,
-                      leds[pos],
-                      GPIO_PIN_SET);
+void vTaskCons2(void *pvParameters){
+    TaskParams_t *task = (TaskParams_t *) pvParameters;
+    uint16_t dato_mirado;
+    uint16_t dato_basura;
 
-    vTaskDelay(pdMS_TO_TICKS(delay_ms));
+    while(1){
+
+        if (xQueuePeek(Cola_Global, &dato_mirado, portMAX_DELAY) == pdPASS) {
+
+            if (dato_mirado % 2 != 0) {
+
+                xQueueReceive(Cola_Global, &dato_basura, 0);
+
+                HAL_GPIO_TogglePin(task->port, task->pin);
+                vTaskDelay(pdMS_TO_TICKS(100));
+                HAL_GPIO_TogglePin(task->port, task->pin);
+            }
+            else {
+
+                vTaskDelay(pdMS_TO_TICKS(10));
+            }
+        }
+    }
 }
 
-void vTask_Procesadora(void *pvParameters){
-	QueueSetMemberHandle_t Cola;
-	uint16_t leds[4] = {LD3_Pin, LD4_Pin, LD6_Pin, LD5_Pin};
 
-	int pos = 0;
-	mov sentido = D;
 
-	mov recibido_modo;
-	uint32_t recibido_vel;
-
-	uint32_t delay_led = 200;
-	while(1)
-	{
-	    Cola = xQueueSelectFromSet(Set_Cola, 0);
-
-	    if (Cola == Cola_Modo)
-	    {
-	        xQueueReceive(Cola_Modo, &recibido_modo, 0);
-	        sentido = recibido_modo;
-	    }
-
-	    else if (Cola == Cola_Velocidad)
-	    {
-	        xQueueReceive(Cola_Velocidad, &recibido_vel, 0);
-	        delay_led = recibido_vel;
-	    }
-
-	    JuegoLuces(leds, pos, delay_led);
-
-	    if(sentido == D)
-	    {
-	        pos++;
-
-	        if(pos > 3)
-	        {
-	            pos = 0;
-	        }
-	    }
-	    else
-	    {
-	        pos--;
-
-	        if(pos < 0)
-	        {
-	            pos = 3;
-	        }
-	    }
-	}
-}
 
 /* USER CODE END 4 */
 
