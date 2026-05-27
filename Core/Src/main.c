@@ -58,8 +58,9 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
-TimerHandle_t xTimerWatchdog = NULL;
+TimerHandle_t xTimerToggle = NULL;
 TimerHandle_t xTimerLED3 = NULL;
+volatile uint32_t last_interrupt = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,9 +69,7 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vCallbackWatchdog(TimerHandle_t xTimer);
-void vCallbackLed3(TimerHandle_t xTimer);
-void vTaskLed1Parpadeo(void *pvParameters);
+void vCallbackToggle(TimerHandle_t xTimer);
 
 
 /* USER CODE END PFP */
@@ -111,23 +110,10 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
-		xTimerWatchdog = xTimerCreate("Watchdog", pdMS_TO_TICKS(5000),
-								 pdFALSE, NULL, vCallbackWatchdog);
+		xTimerToggle = xTimerCreate("Toggle", pdMS_TO_TICKS(1000),
+								 pdTRUE, NULL, vCallbackToggle);
 
-		xTimerLED3 = xTimerCreate("Led3Off", pdMS_TO_TICKS(1000),
-							  pdFALSE, NULL, vCallbackLed3);
-
-		static const TaskParams_t xLed1Params = {
-		    .delay    = 200,
-		    .port     = GPIOD,
-		    .pin      = LD3_Pin,
-		    .btn_port = NULL,
-		    .btn_pin  = 0
-		};
-
-		xTaskCreate(vTaskLed1Parpadeo, "LED1", 128, (void *)&xLed1Params, 1, NULL);
-
-
+		xTimerStart(xTimerToggle, portMAX_DELAY);
 		vTaskStartScheduler();
   /* USER CODE END 2 */
 
@@ -372,10 +358,36 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == GPIO_PIN_0)
     {
+        uint32_t now = HAL_GetTick();
+
+        // Debounce de 200 ms
+        if((now - last_interrupt) < 200)
+        {
+            return;
+        }
+
+        last_interrupt = now;
+
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-        HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_SET);
-        xTimerResetFromISR(xTimerWatchdog, &xHigherPriorityTaskWoken);
+        TickType_t period = xTimerGetPeriod(xTimerToggle);
+
+        if(period > pdMS_TO_TICKS(125))
+        {
+            xTimerChangePeriodFromISR(
+                xTimerToggle,
+                period / 2,
+                &xHigherPriorityTaskWoken
+            );
+        }
+        else
+        {
+            xTimerChangePeriodFromISR(
+                xTimerToggle,
+                pdMS_TO_TICKS(1000),
+                &xHigherPriorityTaskWoken
+            );
+        }
 
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
@@ -383,25 +395,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 
 
-void vCallbackWatchdog(TimerHandle_t xTimer) {
-    HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_RESET);  // Apaga LED2
-    HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);    // Enciende LED3
-    xTimerStart(xTimerLED3, 0);  // ✅ dispara timer de 1 seg para LED3
-}
-
-void vCallbackLed3(TimerHandle_t xTimer) {
-    HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);  // Apaga LED3
-}
-
-
-
-void vTaskLed1Parpadeo(void *pvParameters) {
-    TaskParams_t *task = (TaskParams_t *) pvParameters;
-
-    while(1) {
-        HAL_GPIO_TogglePin(task->port, task->pin);
-        vTaskDelay(pdMS_TO_TICKS(task->delay));
-    }
+void vCallbackToggle(TimerHandle_t xTimer) {
+	HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
 }
 
 
