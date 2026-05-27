@@ -19,9 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "queue.h"
-#include <stdlib.h>
-#include <time.h>
+#include "timers.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -60,9 +58,8 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
-//SemaphoreHandle_t xSemaforoBoton2;
-//SemaphoreHandle_t xSemaforoBoton3;
-//SemaphoreHandle_t xMutex;
+TimerHandle_t xTimerWatchdog = NULL;
+TimerHandle_t xTimerLED3 = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,11 +68,10 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTaskCons1(void *pvParameters);
-void vTaskCons2(void *pvParameters);
-void vTaskProd(void *pvParameters);
+void vCallbackWatchdog(TimerHandle_t xTimer);
+void vCallbackLed3(TimerHandle_t xTimer);
+void vTaskLed1Parpadeo(void *pvParameters);
 
-QueueHandle_t Cola_Global;
 
 /* USER CODE END PFP */
 
@@ -114,23 +110,29 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-  	Cola_Global = xQueueCreate(1,sizeof(uint16_t));
+
+		xTimerWatchdog = xTimerCreate("Watchdog", pdMS_TO_TICKS(5000),
+								 pdFALSE, NULL, vCallbackWatchdog);
+
+		xTimerLED3 = xTimerCreate("Led3Off", pdMS_TO_TICKS(1000),
+							  pdFALSE, NULL, vCallbackLed3);
+
+		static const TaskParams_t xLed1Params = {
+		    .delay    = 200,
+		    .port     = GPIOD,
+		    .pin      = LD3_Pin,
+		    .btn_port = NULL,
+		    .btn_pin  = 0
+		};
+
+		xTaskCreate(vTaskLed1Parpadeo, "LED1", 128, (void *)&xLed1Params, 1, NULL);
 
 
-	static TaskParams_t varcons1 = {0, GPIOD, LD3_Pin, 0, 0};
-	static TaskParams_t varcons2 = {0, GPIOD, LD4_Pin, 0, 0};
-
-	xTaskCreate(vTaskCons1, "Par", 128, &varcons1, 1, NULL);
-	xTaskCreate(vTaskCons2, "Impar", 128, &varcons2, 1, NULL);
-	xTaskCreate(vTaskProd, "Prod", 128, NULL, 1, NULL);
-
-
-
-	vTaskStartScheduler();
+		vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  //osKernelInitialize();
+		// osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -150,7 +152,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  //defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -161,7 +163,7 @@ int main(void)
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
-  //osKernelStart();
+  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -283,7 +285,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PA0 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
@@ -356,78 +358,51 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 6, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-void vTaskProd(void *pvParameters){
-	uint16_t counter = 0;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == GPIO_PIN_0)
+    {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-	while (1) {
-		if (HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_0) == GPIO_PIN_SET){
-			vTaskDelay(pdMS_TO_TICKS(60));
-			counter++;
-			xQueueOverwrite(Cola_Global, &counter);
-			vTaskDelay(pdMS_TO_TICKS(60));
-		}
-	}
-}
+        HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_SET);
+        xTimerResetFromISR(xTimerWatchdog, &xHigherPriorityTaskWoken);
 
-
-void vTaskCons1(void *pvParameters){
-    TaskParams_t *task = (TaskParams_t *) pvParameters;
-    uint16_t dato_mirado; // dato que vamos a ver en la cola
-    uint16_t dato_basura; // dato para guardar y sacar el dato que miramos de la cola
-
-    while(1){
-
-        if (xQueuePeek(Cola_Global, &dato_mirado, portMAX_DELAY) == pdPASS) {
-
-            if (dato_mirado % 2 == 0) {
-
-                xQueueReceive(Cola_Global, &dato_basura, 0);
-
-                HAL_GPIO_TogglePin(task->port, task->pin);
-                vTaskDelay(pdMS_TO_TICKS(100));
-                HAL_GPIO_TogglePin(task->port, task->pin);
-            }
-            else {
-
-                vTaskDelay(pdMS_TO_TICKS(20)); // para darle tiempo a la otra tarea
-            }
-        }
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }
 
 
-void vTaskCons2(void *pvParameters){
-    TaskParams_t *task = (TaskParams_t *) pvParameters;
-    uint16_t dato_mirado;
-    uint16_t dato_basura;
 
-    while(1){
+void vCallbackWatchdog(TimerHandle_t xTimer) {
+    HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_RESET);  // Apaga LED2
+    HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);    // Enciende LED3
+    xTimerStart(xTimerLED3, 0);  // ✅ dispara timer de 1 seg para LED3
+}
 
-        if (xQueuePeek(Cola_Global, &dato_mirado, portMAX_DELAY) == pdPASS) {
-
-            if (dato_mirado % 2 != 0) {
-
-                xQueueReceive(Cola_Global, &dato_basura, 0);
-
-                HAL_GPIO_TogglePin(task->port, task->pin);
-                vTaskDelay(pdMS_TO_TICKS(100));
-                HAL_GPIO_TogglePin(task->port, task->pin);
-            }
-            else {
-
-                vTaskDelay(pdMS_TO_TICKS(10));
-            }
-        }
-    }
+void vCallbackLed3(TimerHandle_t xTimer) {
+    HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);  // Apaga LED3
 }
 
 
+
+void vTaskLed1Parpadeo(void *pvParameters) {
+    TaskParams_t *task = (TaskParams_t *) pvParameters;
+
+    while(1) {
+        HAL_GPIO_TogglePin(task->port, task->pin);
+        vTaskDelay(pdMS_TO_TICKS(task->delay));
+    }
+}
 
 
 /* USER CODE END 4 */
