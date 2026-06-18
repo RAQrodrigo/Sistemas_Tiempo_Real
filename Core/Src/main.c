@@ -68,9 +68,8 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
-SemaphoreHandle_t xSemaforoBoton = NULL;
-QueueHandle_t xColaFIFO = NULL;
-SemaphoreHandle_t xSemaforoContador = NULL;
+TaskHandle_t xTareaAHandle = NULL;
+TaskHandle_t xTareaBHandle = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,8 +78,8 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void  vTaskProcesador(void *pvParameters);
-
+void  vTaskA(void *pvParameters);
+void  vTaskB(void *pvParameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -120,12 +119,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
   MX_USB_DEVICE_Init();
 
-  // Creamos la FIFO para guardar hasta 10 caracteres (bytes)
-  xColaFIFO = xQueueCreate(10, sizeof(char));
-
   // Creamos el Semáforo Contador: Máximo 10, arranca en 0 eventos pendientes
-  xSemaforoContador = xSemaphoreCreateCounting(10, 0);
-  xTaskCreate(vTaskProcesador, "Procesador", 128, NULL, 1, NULL);
+  xTaskCreate(vTaskA, "TareaA", 128, NULL, 1, &xTareaAHandle);
+  xTaskCreate(vTaskB, "TareaB", 128, NULL, 1, &xTareaBHandle);
 
 
   vTaskStartScheduler();
@@ -366,38 +362,37 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 }
 
-void vTaskProcesador(void *pvParameters)
+
+void vTaskA(void *pvParameters)
 {
-    char caracterExtraido;
-    uint32_t pendientes;
-    char mensajeBuffer[50];
+    char mensajeA[] = "--- TAREA A EJECUTANDOSE ---\r\n";
+    uint16_t lenA = sizeof(mensajeA) - 1;
 
     while(1)
     {
-        // Esperamos a que el semáforo contador tenga algún evento (carácter pendiente)
-        if (xSemaphoreTake(xSemaforoContador, portMAX_DELAY) == pdPASS)
+        // Forzamos la corrupción enviando carácter por carácter
+        for(int i = 0; i < lenA; i++)
         {
-            // Sacamos el primer carácter que entró a la FIFO (orden de llegada)
-            if (xQueueReceive(xColaFIFO, &caracterExtraido, 0) == pdPASS)
-            {
-                // 1. Destellar el LED2 rápido (50ms ON) -> En las placas suele ser el GPIOD Pin 13, 14 o 15. Ajustá según tu placa.
-                HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_SET); // LED ON
-                vTaskDelay(pdMS_TO_TICKS(50));
-                HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_RESET); // LED OFF
-
-                // 2. Averiguar cuántos caracteres quedan en el semáforo pendientes por procesar
-                pendientes = uxSemaphoreGetCount(xSemaforoContador);
-
-                // 3. Armar el string de respuesta exacto que te pide la guía
-                int len = sprintf(mensajeBuffer, "Recibido:'%c' - Caracteres pendientes:%lu\r\n", caracterExtraido, pendientes);
-
-                // 4. Transmitir por USB Nativo
-                CDC_Transmit_FS((uint8_t*)mensajeBuffer, len);
-            }
+            CDC_Transmit_FS((uint8_t*)&mensajeA[i], 1);
+            // Pequeño truco: le damos un micro-delay de hardware si hace falta,
+            // pero el mismo for va a hacer que FreeRTOS las corte a la mitad.
         }
     }
 }
 
+void vTaskB(void *pvParameters)
+{
+    char mensajeB[] = "*** TAREA B EJECUTANDOSE ***\r\n";
+    uint16_t lenB = sizeof(mensajeB) - 1;
+
+    while(1)
+    {
+        for(int i = 0; i < lenB; i++)
+        {
+            CDC_Transmit_FS((uint8_t*)&mensajeB[i], 1);
+        }
+    }
+}
 
 /* USER CODE END 4 */
 

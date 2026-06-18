@@ -266,22 +266,9 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
-		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-		for(uint32_t i = 0; i < *Len; i++)
-			{
-			  // Mandamos el carácter a la cola FIFO desde la ISR
-			  xQueueSendToBackFromISR(xColaFIFO, &Buf[i], &xHigherPriorityTaskWoken);
-
-			  // Liberamos una unidad del semáforo contador por cada carácter recibido
-			  xSemaphoreGiveFromISR(xSemaforoContador, &xHigherPriorityTaskWoken);
-			}
-
-		USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
-		USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-
-		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-	return (USBD_OK);
+	USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
+	  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+	  return (USBD_OK);
   /* USER CODE END 6 */
 }
 
