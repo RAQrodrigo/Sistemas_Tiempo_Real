@@ -68,8 +68,7 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
-TaskHandle_t xTareaAHandle = NULL;
-TaskHandle_t xTareaBHandle = NULL;
+TaskHandle_t xTareaTerminalHandle = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,8 +77,8 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void  vTaskA(void *pvParameters);
-void  vTaskB(void *pvParameters);
+void  vTaskTerminal(void *pvParameters);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -119,10 +118,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   MX_USB_DEVICE_Init();
 
-  // Creamos el Semáforo Contador: Máximo 10, arranca en 0 eventos pendientes
-  xTaskCreate(vTaskA, "TareaA", 128, NULL, 1, &xTareaAHandle);
-  xTaskCreate(vTaskB, "TareaB", 128, NULL, 1, &xTareaBHandle);
-
+  xTaskCreate(vTaskTerminal, "Terminal", 128, NULL, 2, &xTareaTerminalHandle);
 
   vTaskStartScheduler();
   /* USER CODE END 2 */
@@ -159,7 +155,7 @@ int main(void)
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
-  osKernelStart();
+  //osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -362,37 +358,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 }
 
-
-void vTaskA(void *pvParameters)
+void vTaskTerminal(void *pvParameters)
 {
-    char mensajeA[] = "--- TAREA A EJECUTANDOSE ---\r\n";
-    uint16_t lenA = sizeof(mensajeA) - 1;
-
     while(1)
     {
-        // Forzamos la corrupción enviando carácter por carácter
-        for(int i = 0; i < lenA; i++)
-        {
-            CDC_Transmit_FS((uint8_t*)&mensajeA[i], 1);
-            // Pequeño truco: le damos un micro-delay de hardware si hace falta,
-            // pero el mismo for va a hacer que FreeRTOS las corte a la mitad.
-        }
+        // La tarea se duerme acá de forma ultra liviana.
+        // No gasta RAM de semáforos, espera que el USB le mande un "vTaskNotifyGive"
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        // ¡Despertó! Conmutamos el LED para demostrar que llegó el aviso
+        HAL_GPIO_TogglePin(GPIOD, LD3_Pin); // Cambiá el pin si tu LED está en otro lado (ej: GPIO_PIN_13)
     }
 }
 
-void vTaskB(void *pvParameters)
-{
-    char mensajeB[] = "*** TAREA B EJECUTANDOSE ***\r\n";
-    uint16_t lenB = sizeof(mensajeB) - 1;
-
-    while(1)
-    {
-        for(int i = 0; i < lenB; i++)
-        {
-            CDC_Transmit_FS((uint8_t*)&mensajeB[i], 1);
-        }
-    }
-}
 
 /* USER CODE END 4 */
 

@@ -22,12 +22,11 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
-extern QueueHandle_t xColaFIFO;
-extern SemaphoreHandle_t xSemaforoContador;
+#include "task.h"
 #include "usbd_cdc_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+extern TaskHandle_t xTareaTerminalHandle;
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -266,7 +265,18 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
-	USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
+	if(xTareaTerminalHandle != NULL)
+	  {
+	      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+	      vTaskNotifyGiveFromISR(xTareaTerminalHandle, &xHigherPriorityTaskWoken);
+
+	      // Si la tarea es de mayor prioridad, exigimos el cambio de contexto inmediato
+	      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	  }
+
+	  // Avisamos al hardware que ya procesamos el paquete y quede listo para el próximo
+	  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
 	  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 	  return (USBD_OK);
   /* USER CODE END 6 */
