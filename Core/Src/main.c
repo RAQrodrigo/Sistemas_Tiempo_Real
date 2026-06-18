@@ -69,6 +69,8 @@ const osThreadAttr_t defaultTask_attributes = {
 };
 /* USER CODE BEGIN PV */
 SemaphoreHandle_t xSemaforoBoton = NULL;
+QueueHandle_t xColaFIFO = NULL;
+SemaphoreHandle_t xSemaforoContador = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -117,9 +119,14 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
   MX_USB_DEVICE_Init();
-  xSemaforoBoton = xSemaphoreCreateBinary();
 
-  xTaskCreate( vTaskBoton, "Main", 128, NULL, 1, NULL);
+  // Creamos la FIFO para guardar hasta 10 caracteres (bytes)
+  xColaFIFO = xQueueCreate(10, sizeof(char));
+
+  // Creamos el Semáforo Contador: Máximo 10, arranca en 0 eventos pendientes
+  xSemaforoContador = xSemaphoreCreateCounting(10, 0);
+  xTaskCreate(vTareaProcesador, "Procesador", 128, NULL, 1, NULL);
+
 
   vTaskStartScheduler();
   /* USER CODE END 2 */
@@ -356,33 +363,37 @@ static void MX_GPIO_Init(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == GPIO_PIN_0)
-    {
-        static TickType_t lastInterruptTime = 0;
 
-        TickType_t currentTime = xTaskGetTickCountFromISR();
-
-        if ((currentTime - lastInterruptTime) > pdMS_TO_TICKS(200))
-        {
-        	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-			xSemaphoreGiveFromISR(xSemaforoBoton, &xHigherPriorityTaskWoken);
-
-			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-            lastInterruptTime = currentTime;
-        }
-    }
 }
 
-void vTaskBoton(void *pvParameters)
+void vTareaProcesador(void *pvParameters)
 {
+    char caracterExtraido;
+    uint32_t pendientes;
+    char mensajeBuffer[50];
+
     while(1)
     {
-        if (xSemaphoreTake(xSemaforoBoton, portMAX_DELAY) == pdPASS)
+        // Esperamos a que el semáforo contador tenga algún evento (carácter pendiente)
+        if (xSemaphoreTake(xSemaforoContador, portMAX_DELAY) == pdPASS)
         {
+            // Sacamos el primer carácter que entró a la FIFO (orden de llegada)
+            if (xQueueReceive(xColaFIFO, &caracterExtraido, 0) == pdPASS)
+            {
+                // 1. Destellar el LED2 rápido (50ms ON) -> En las placas suele ser el GPIOD Pin 13, 14 o 15. Ajustá según tu placa.
+                HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_SET); // LED ON
+                vTaskDelay(pdMS_TO_TICKS(50));
+                HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_RESET); // LED OFF
 
-        	HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
-            CDC_Transmit_FS((uint8_t*)"[EVENTO] Pulsador accionado\r\n", 29);
+                // 2. Averiguar cuántos caracteres quedan en el semáforo pendientes por procesar
+                pendientes = uxSemaphoreGetCount(xSemaforoContador);
+
+                // 3. Armar el string de respuesta exacto que te pide la guía
+                int len = sprintf(mensajeBuffer, "Recibido:'%c' - Caracteres pendientes:%lu\r\n", caracterExtraido, pendientes);
+
+                // 4. Transmitir por USB Nativo
+                CDC_Transmit_FS((uint8_t*)mensajeBuffer, len);
+            }
         }
     }
 }
