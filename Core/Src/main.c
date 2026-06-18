@@ -19,8 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "queue.h"
-
+#include "usb_device.h"
+#include "semphr.h"       // <--- ¡Faltaba esta para los semáforos!
+#include "usbd_cdc_if.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -29,21 +30,21 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 typedef struct {
-    uint32_t delay;
-    GPIO_TypeDef* port;
-    uint16_t pin;
-    GPIO_TypeDef* btn_port;
-    uint16_t btn_pin;
+  uint32_t delay;
+  GPIO_TypeDef* port;
+  uint16_t pin;
+  GPIO_TypeDef* btn_port;
+  uint16_t btn_pin;
 } TaskParams_t;
 
-typedef enum{
-    ENCENDER,
-    APAGAR
+typedef enum {
+  ENCENDER,
+  APAGAR
 } ord;
 
-typedef struct{
-	uint16_t led_pin;
-	ord orden;
+typedef struct {
+  uint16_t led_pin;
+  ord orden;
 } instruc;
 
 /* USER CODE END PTD */
@@ -67,9 +68,7 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
-//SemaphoreHandle_t xSemaforoBoton2;
-//SemaphoreHandle_t xSemaforoBoton3;
-//SemaphoreHandle_t xMutex;
+SemaphoreHandle_t xSemaforoBoton = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,9 +77,8 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void vTaskMain(void *pvParameters);
-void vTaskLed(void *pvParameters);
-QueueHandle_t xQueue;
+void  vTaskProcesarBoton(void *pvParameters);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -118,19 +116,16 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
+  MX_USB_DEVICE_Init();
+  xSemaforoBoton = xSemaphoreCreateBinary();
 
-	xQueue = xQueueCreate(5, sizeof(instruc));
+  xTaskCreate( vTaskProcesarBoton, "Main", 128, NULL, 1, NULL);
 
-	xTaskCreate(vTaskMain, "Main", 128, NULL, 1, NULL);
-	xTaskCreate(vTaskLed, "Led", 128, NULL, 1, NULL);
-
-
-
-	vTaskStartScheduler();
+  vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  //osKernelInitialize();
+  osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -150,7 +145,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  //defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -161,7 +156,7 @@ int main(void)
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
-  //osKernelStart();
+  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -193,10 +188,16 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 72;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 3;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -283,7 +284,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PA0 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
@@ -328,20 +329,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : VBUS_FS_Pin */
-  GPIO_InitStruct.Pin = VBUS_FS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(VBUS_FS_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : OTG_FS_ID_Pin OTG_FS_DM_Pin OTG_FS_DP_Pin */
-  GPIO_InitStruct.Pin = OTG_FS_ID_Pin|OTG_FS_DM_Pin|OTG_FS_DP_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : OTG_FS_OverCurrent_Pin */
   GPIO_InitStruct.Pin = OTG_FS_OverCurrent_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -356,6 +343,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
@@ -363,114 +354,42 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void enviarOrden(uint16_t led, ord orden)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    instruc cmd;
+    // 1. Verificamos cuál pin levantó la mano (el pulsador de la placa suele ser el Pin 0)
+    if (GPIO_Pin == GPIO_PIN_0)
+    {
+        /* --- FILTRO ANTIREBOTE POR SOFTWARE (DEBOUNCING) --- */
+        static TickType_t lastInterruptTime = 0;
 
-    cmd.led_pin = led;
-    cmd.orden = orden;
+        // En interrupciones de FreeRTOS, se usa obligatoriamente esta función:
+        TickType_t currentTime = xTaskGetTickCountFromISR();
 
-    xQueueSend(xQueue, &cmd, portMAX_DELAY);
-}
+        // Si pasaron más de 200ms desde el último toque válido, procesamos la pulsación
+        if ((currentTime - lastInterruptTime) > pdMS_TO_TICKS(200))
+        {
+        	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-void vTaskMain(void *pvParameters){
+        	        // "Damos" el semáforo para desbloquear a la tarea
+			xSemaphoreGiveFromISR(xSemaforoBoton, &xHigherPriorityTaskWoken);
 
-
-    while(1){
-
-    	// Ida
-    	enviarOrden(LD3_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD3_Pin, APAGAR);
-
-    	enviarOrden(LD4_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD4_Pin, APAGAR);
-
-    	enviarOrden(LD5_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD5_Pin, APAGAR);
-
-    	enviarOrden(LD6_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD6_Pin, APAGAR);
-
-
-    	// Vuelta
-    	enviarOrden(LD5_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD5_Pin, APAGAR);
-
-    	enviarOrden(LD4_Pin, ENCENDER);
-    	vTaskDelay(pdMS_TO_TICKS(100));
-
-    	enviarOrden(LD4_Pin, APAGAR);
-
-
-    	// Todos prendidos
-    	enviarOrden(LD3_Pin, ENCENDER);
-    	enviarOrden(LD4_Pin, ENCENDER);
-    	enviarOrden(LD5_Pin, ENCENDER);
-    	enviarOrden(LD6_Pin, ENCENDER);
-
-    	vTaskDelay(pdMS_TO_TICKS(300));
-
-
-    	// Todos apagados
-    	enviarOrden(LD3_Pin, APAGAR);
-    	enviarOrden(LD4_Pin, APAGAR);
-    	enviarOrden(LD5_Pin, APAGAR);
-    	enviarOrden(LD6_Pin, APAGAR);
-
-    	vTaskDelay(pdMS_TO_TICKS(300));
-
-
-    	// Parpadeo rápido
-    	for(int i = 0; i < 3; i++)
-    	{
-    	    enviarOrden(LD3_Pin, ENCENDER);
-    	    enviarOrden(LD4_Pin, ENCENDER);
-    	    enviarOrden(LD5_Pin, ENCENDER);
-    	    enviarOrden(LD6_Pin, ENCENDER);
-
-    	    vTaskDelay(pdMS_TO_TICKS(150));
-
-    	    enviarOrden(LD3_Pin, APAGAR);
-    	    enviarOrden(LD4_Pin, APAGAR);
-    	    enviarOrden(LD5_Pin, APAGAR);
-    	    enviarOrden(LD6_Pin, APAGAR);
-
-    	    vTaskDelay(pdMS_TO_TICKS(150));
-    	}
+        	        // Forzamos el cambio de contexto inmediato si la tarea es de alta prioridad
+			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+            lastInterruptTime = currentTime;
+        }
     }
 }
 
-void vTaskLed(void *pvParameters){
-
-    instruc comand;
-
+void vTaskProcesarBoton(void *pvParameters)
+{
     while(1)
     {
-        if (xQueueReceive(xQueue, &comand, portMAX_DELAY) == pdPASS)
+        // Esperamos el semáforo del botón
+        if (xSemaphoreTake(xSemaforoBoton, portMAX_DELAY) == pdPASS)
         {
-            if(comand.orden == ENCENDER)
-            {
-                HAL_GPIO_WritePin(GPIOD,
-                                  comand.led_pin,
-                                  GPIO_PIN_SET);
-            }
 
-            else if(comand.orden == APAGAR)
-            {
-                HAL_GPIO_WritePin(GPIOD,
-                                  comand.led_pin,
-                                  GPIO_PIN_RESET);
-            }
+        	HAL_GPIO_TogglePin(GPIOD, LD3_Pin);
+            CDC_Transmit_FS((uint8_t*)"[EVENTO] Pulsador accionado\r\n", 29);
         }
     }
 }
@@ -487,6 +406,8 @@ void vTaskLed(void *pvParameters){
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
+  /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
   for(;;)
