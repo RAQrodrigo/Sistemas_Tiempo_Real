@@ -77,7 +77,7 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void  vTaskProcesarBoton(void *pvParameters);
+void  vTaskBoton(void *pvParameters);
 
 /* USER CODE END PFP */
 
@@ -119,7 +119,7 @@ int main(void)
   MX_USB_DEVICE_Init();
   xSemaforoBoton = xSemaphoreCreateBinary();
 
-  xTaskCreate( vTaskProcesarBoton, "Main", 128, NULL, 1, NULL);
+  xTaskCreate( vTaskBoton, "Main", 128, NULL, 1, NULL);
 
   vTaskStartScheduler();
   /* USER CODE END 2 */
@@ -356,35 +356,28 @@ static void MX_GPIO_Init(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    // 1. Verificamos cuál pin levantó la mano (el pulsador de la placa suele ser el Pin 0)
     if (GPIO_Pin == GPIO_PIN_0)
     {
-        /* --- FILTRO ANTIREBOTE POR SOFTWARE (DEBOUNCING) --- */
         static TickType_t lastInterruptTime = 0;
 
-        // En interrupciones de FreeRTOS, se usa obligatoriamente esta función:
         TickType_t currentTime = xTaskGetTickCountFromISR();
 
-        // Si pasaron más de 200ms desde el último toque válido, procesamos la pulsación
         if ((currentTime - lastInterruptTime) > pdMS_TO_TICKS(200))
         {
         	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-        	        // "Damos" el semáforo para desbloquear a la tarea
 			xSemaphoreGiveFromISR(xSemaforoBoton, &xHigherPriorityTaskWoken);
 
-        	        // Forzamos el cambio de contexto inmediato si la tarea es de alta prioridad
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             lastInterruptTime = currentTime;
         }
     }
 }
 
-void vTaskProcesarBoton(void *pvParameters)
+void vTaskBoton(void *pvParameters)
 {
     while(1)
     {
-        // Esperamos el semáforo del botón
         if (xSemaphoreTake(xSemaforoBoton, portMAX_DELAY) == pdPASS)
         {
 
