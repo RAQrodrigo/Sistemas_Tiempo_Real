@@ -79,7 +79,7 @@ static void MX_GPIO_Init(void);
 void StartDefaultTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-void  vTaskBoton(void *pvParameters);
+void  vTaskProcesador(void *pvParameters);
 
 /* USER CODE END PFP */
 
@@ -125,14 +125,14 @@ int main(void)
 
   // Creamos el Semáforo Contador: Máximo 10, arranca en 0 eventos pendientes
   xSemaforoContador = xSemaphoreCreateCounting(10, 0);
-  xTaskCreate(vTareaProcesador, "Procesador", 128, NULL, 1, NULL);
+  xTaskCreate(vTaskProcesador, "Procesador", 128, NULL, 1, NULL);
 
 
   vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  osKernelInitialize();
+  //osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -366,7 +366,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 }
 
-void vTareaProcesador(void *pvParameters)
+void vTaskProcesador(void *pvParameters)
 {
     char caracterExtraido;
     uint32_t pendientes;

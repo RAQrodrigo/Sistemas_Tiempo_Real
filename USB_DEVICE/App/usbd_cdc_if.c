@@ -19,6 +19,9 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
 extern QueueHandle_t xColaFIFO;
 extern SemaphoreHandle_t xSemaforoContador;
 #include "usbd_cdc_if.h"
