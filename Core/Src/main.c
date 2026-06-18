@@ -118,7 +118,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   MX_USB_DEVICE_Init();
 
-  xTaskCreate(vTaskTerminal, "Terminal", 128, NULL, 2, &xTareaTerminalHandle);
+  xTaskCreate(vTaskTerminal, "Controladora", 128, NULL, 2, &xTareaTerminalHandle);
 
   vTaskStartScheduler();
   /* USER CODE END 2 */
@@ -360,14 +360,57 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void vTaskTerminal(void *pvParameters)
 {
+    uint32_t comandoRecibido = 0;
+
     while(1)
     {
-        // La tarea se duerme acá de forma ultra liviana.
-        // No gasta RAM de semáforos, espera que el USB le mande un "vTaskNotifyGive"
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        // Se bloquea indefinidamente esperando la notificación.
+        // El tercer parámetro guarda el valor recibido en nuestra variable 'comandoRecibido'.
+        if (xTaskNotifyWait(0x00,               // No limpia ningún bit al entrar
+                            0xFFFFFFFF,         // Limpia todos los bits al salir (resetea el valor)
+                            &comandoRecibido,   // Dirección donde se guarda el comando (0x01, 0x02...)
+                            portMAX_DELAY) == pdPASS)
+        {
+            // ¡Llegó una notificación con valor! Analizamos qué comando es:
+            switch (comandoRecibido)
+            {
+                case 0x01:
+                    // Enciende LED 1 y apaga el resto
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);   // Green
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET); // Orange
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET); // Red
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET); // Blue
+                    break;
 
-        // ¡Despertó! Conmutamos el LED para demostrar que llegó el aviso
-        HAL_GPIO_TogglePin(GPIOD, LD3_Pin); // Cambiá el pin si tu LED está en otro lado (ej: GPIO_PIN_13)
+                case 0x02:
+                    // Enciende LED 2 y apaga el resto
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+                    break;
+
+                case 0x03:
+                    // Enciende LED 3 y apaga el resto
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+                    break;
+
+                case 0x04:
+                    // Enciende LED 4 y apaga el resto
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+                    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+                    break;
+
+                default:
+                    // Si llega otra cosa rara, no hace nada
+                    break;
+            }
+        }
     }
 }
 

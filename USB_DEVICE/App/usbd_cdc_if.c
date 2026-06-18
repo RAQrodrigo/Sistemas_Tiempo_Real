@@ -265,17 +265,34 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
-	if(xTareaTerminalHandle != NULL)
+	// Verificamos si la tarea controladora existe antes de notificar
+	  if(xTareaTerminalHandle != NULL && *Len > 0)
 	  {
-	      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	      uint32_t comando = 0;
+	      uint8_t caracter = Buf[0]; // Tomamos el primer carácter que llegó
 
-	      vTaskNotifyGiveFromISR(xTareaTerminalHandle, &xHigherPriorityTaskWoken);
+	      // Evaluamos el carácter usando una estructura condicional
+	      if (caracter == '1') comando = 0x01;
+	      else if (caracter == '2') comando = 0x02;
+	      else if (caracter == '3') comando = 0x03;
+	      else if (caracter == '4') comando = 0x04;
 
-	      // Si la tarea es de mayor prioridad, exigimos el cambio de contexto inmediato
-	      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	      // Si el comando es válido (alguno de los 4), se lo mandamos a la tarea
+	      if (comando != 0)
+	      {
+	          BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+	          // Enviamos la notificación cargando el valor en la variable de la tarea
+	          xTaskNotifyFromISR(xTareaTerminalHandle,
+	                             comando,
+	                             eSetValueWithOverwrite,
+	                             &xHigherPriorityTaskWoken);
+
+	          portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	      }
 	  }
 
-	  // Avisamos al hardware que ya procesamos el paquete y quede listo para el próximo
+	  // Dejamos el USB listo para recibir el próximo comando
 	  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
 	  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 	  return (USBD_OK);

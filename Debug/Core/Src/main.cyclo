@@ -2,7 +2,7 @@
 ../Core/Src/main.c:177:6:SystemClock_Config	3
 ../Core/Src/main.c:225:13:MX_GPIO_Init	1
 ../Core/Src/main.c:356:6:HAL_GPIO_EXTI_Callback	1
-../Core/Src/main.c:361:6:vTaskTerminal	1
-../Core/Src/main.c:384:6:StartDefaultTask	1
-../Core/Src/main.c:405:6:HAL_TIM_PeriodElapsedCallback	2
-../Core/Src/main.c:423:6:Error_Handler	1
+../Core/Src/main.c:361:6:vTaskTerminal	6
+../Core/Src/main.c:427:6:StartDefaultTask	1
+../Core/Src/main.c:448:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:466:6:Error_Handler	1
