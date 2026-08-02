@@ -5788,9 +5788,9 @@ LOAD C:/ST/STM32CubeIDE_2.1.1/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
  .text.HAL_GPIO_EXTI_Callback
                 0x080008ec       0x68 ./Core/Src/main.o
                 0x080008ec                HAL_GPIO_EXTI_Callback
- .text.vTaskProcesarBoton
+ .text.vTaskBoton
                 0x08000954       0x3c ./Core/Src/main.o
-                0x08000954                vTaskProcesarBoton
+                0x08000954                vTaskBoton
  .text.StartDefaultTask
                 0x08000990       0x14 ./Core/Src/main.o
                 0x08000990                StartDefaultTask
@@ -7345,38 +7345,38 @@ LOAD C:/ST/STM32CubeIDE_2.1.1/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
  .debug_line    0x0001b8c0      0xb07 ./USB_DEVICE/App/usbd_desc.o
  .debug_line    0x0001c3c7      0xe3b ./USB_DEVICE/Target/usbd_conf.o
 
-.debug_str      0x00000000    0x9a8c9
- .debug_str     0x00000000    0x9a8c9 ./Core/Src/main.o
-                              0x92073 (size before relaxing)
- .debug_str     0x0009a8c9    0x87097 ./Core/Src/stm32f4xx_hal_msp.o
- .debug_str     0x0009a8c9    0x8711c ./Core/Src/stm32f4xx_hal_timebase_tim.o
- .debug_str     0x0009a8c9    0x8757b ./Core/Src/stm32f4xx_it.o
- .debug_str     0x0009a8c9    0x8677d ./Core/Src/system_stm32f4xx.o
- .debug_str     0x0009a8c9       0x95 ./Core/Startup/startup_stm32f411vetx.o
- .debug_str     0x0009a8c9    0x871a9 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
- .debug_str     0x0009a8c9    0x86f13 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.o
- .debug_str     0x0009a8c9    0x868f8 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.o
- .debug_str     0x0009a8c9    0x87249 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.o
- .debug_str     0x0009a8c9    0x86b39 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.o
- .debug_str     0x0009a8c9    0x86bb1 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.o
- .debug_str     0x0009a8c9    0x87af5 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.o
- .debug_str     0x0009a8c9    0x87301 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.o
- .debug_str     0x0009a8c9    0x87124 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.o
- .debug_str     0x0009a8c9    0x8bd7f ./Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.o
- .debug_str     0x0009a8c9    0x8b6df ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.o
- .debug_str     0x0009a8c9    0x8b50a ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.o
- .debug_str     0x0009a8c9    0x8b3df ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
- .debug_str     0x0009a8c9    0x9125c ./Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.o
- .debug_str     0x0009a8c9     0xabb1 ./Middlewares/Third_Party/FreeRTOS/Source/list.o
- .debug_str     0x0009a8c9     0xc6f1 ./Middlewares/Third_Party/FreeRTOS/Source/queue.o
- .debug_str     0x0009a8c9     0xd1ae ./Middlewares/Third_Party/FreeRTOS/Source/tasks.o
- .debug_str     0x0009a8c9     0xcc23 ./Middlewares/Third_Party/FreeRTOS/Source/timers.o
- .debug_str     0x0009a8c9     0x87cd ./Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.o
- .debug_str     0x0009a8c9     0xb4f3 ./Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.o
- .debug_str     0x0009a8c9    0x8b792 ./USB_DEVICE/App/usb_device.o
- .debug_str     0x0009a8c9    0x8b7d2 ./USB_DEVICE/App/usbd_cdc_if.o
- .debug_str     0x0009a8c9    0x8b2d7 ./USB_DEVICE/App/usbd_desc.o
- .debug_str     0x0009a8c9    0x8c48e ./USB_DEVICE/Target/usbd_conf.o
+.debug_str      0x00000000    0x9a8c1
+ .debug_str     0x00000000    0x9a8c1 ./Core/Src/main.o
+                              0x9206b (size before relaxing)
+ .debug_str     0x0009a8c1    0x87097 ./Core/Src/stm32f4xx_hal_msp.o
+ .debug_str     0x0009a8c1    0x8711c ./Core/Src/stm32f4xx_hal_timebase_tim.o
+ .debug_str     0x0009a8c1    0x8757b ./Core/Src/stm32f4xx_it.o
+ .debug_str     0x0009a8c1    0x8677d ./Core/Src/system_stm32f4xx.o
+ .debug_str     0x0009a8c1       0x95 ./Core/Startup/startup_stm32f411vetx.o
+ .debug_str     0x0009a8c1    0x871a9 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
+ .debug_str     0x0009a8c1    0x86f13 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.o
+ .debug_str     0x0009a8c1    0x868f8 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.o
+ .debug_str     0x0009a8c1    0x87249 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.o
+ .debug_str     0x0009a8c1    0x86b39 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.o
+ .debug_str     0x0009a8c1    0x86bb1 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.o
+ .debug_str     0x0009a8c1    0x87af5 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.o
+ .debug_str     0x0009a8c1    0x87301 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.o
+ .debug_str     0x0009a8c1    0x87124 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.o
+ .debug_str     0x0009a8c1    0x8bd7f ./Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.o
+ .debug_str     0x0009a8c1    0x8b6df ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.o
+ .debug_str     0x0009a8c1    0x8b50a ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.o
+ .debug_str     0x0009a8c1    0x8b3df ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
+ .debug_str     0x0009a8c1    0x9125c ./Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.o
+ .debug_str     0x0009a8c1     0xabb1 ./Middlewares/Third_Party/FreeRTOS/Source/list.o
+ .debug_str     0x0009a8c1     0xc6f1 ./Middlewares/Third_Party/FreeRTOS/Source/queue.o
+ .debug_str     0x0009a8c1     0xd1ae ./Middlewares/Third_Party/FreeRTOS/Source/tasks.o
+ .debug_str     0x0009a8c1     0xcc23 ./Middlewares/Third_Party/FreeRTOS/Source/timers.o
+ .debug_str     0x0009a8c1     0x87cd ./Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.o
+ .debug_str     0x0009a8c1     0xb4f3 ./Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.o
+ .debug_str     0x0009a8c1    0x8b792 ./USB_DEVICE/App/usb_device.o
+ .debug_str     0x0009a8c1    0x8b7d2 ./USB_DEVICE/App/usbd_cdc_if.o
+ .debug_str     0x0009a8c1    0x8b2d7 ./USB_DEVICE/App/usbd_desc.o
+ .debug_str     0x0009a8c1    0x8c48e ./USB_DEVICE/Target/usbd_conf.o
 
 .comment        0x00000000       0x43
  .comment       0x00000000       0x43 ./Core/Src/main.o
