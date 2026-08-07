@@ -70,6 +70,7 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE BEGIN PV */
 TaskHandle_t xTareaAHandle = NULL;
 TaskHandle_t xTareaBHandle = NULL;
+SemaphoreHandle_t xUSB_Mutex = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,6 +121,7 @@ int main(void)
   MX_USB_DEVICE_Init();
 
   // Creamos el Semáforo Contador: Máximo 10, arranca en 0 eventos pendientes
+  xUSB_Mutex = xSemaphoreCreateMutex();
   xTaskCreate(vTaskA, "TareaA", 128, NULL, 1, &xTareaAHandle);
   xTaskCreate(vTaskB, "TareaB", 128, NULL, 1, &xTareaBHandle);
 
@@ -371,12 +373,17 @@ void vTaskA(void *pvParameters)
     while(1)
     {
         // Forzamos la corrupción enviando carácter por carácter
-        for(int i = 0; i < lenA; i++)
-        {
-            CDC_Transmit_FS((uint8_t*)&mensajeA[i], 1);
-            // Pequeño truco: le damos un micro-delay de hardware si hace falta,
-            // pero el mismo for va a hacer que FreeRTOS las corte a la mitad.
-        }
+    	if (xSemaphoreTake(xUSB_Mutex, portMAX_DELAY) == pdPASS) {
+    		for(int i = 0; i < lenA; i++)
+        	{
+    			while (CDC_Transmit_FS((uint8_t*)&mensajeA[i], 1) != USBD_OK)
+    			    			    {
+    			    			        vTaskDelay(pdMS_TO_TICKS(1));
+    			    			    }
+        	}
+        xSemaphoreGive(xUSB_Mutex);
+        vTaskDelay(100);
+    	}
     }
 }
 
@@ -387,10 +394,17 @@ void vTaskB(void *pvParameters)
 
     while(1)
     {
-        for(int i = 0; i < lenB; i++)
-        {
-            CDC_Transmit_FS((uint8_t*)&mensajeB[i], 1);
-        }
+    	if (xSemaphoreTake(xUSB_Mutex, portMAX_DELAY) == pdPASS) {
+    		for(int i = 0; i < lenB; i++)
+        	{
+    			while (CDC_Transmit_FS((uint8_t*)&mensajeB[i], 1) != USBD_OK)
+    			    {
+    			        vTaskDelay(pdMS_TO_TICKS(1));
+    			    }
+        	}
+    		xSemaphoreGive(xUSB_Mutex);
+    		vTaskDelay(100);
+    	}
     }
 }
 
