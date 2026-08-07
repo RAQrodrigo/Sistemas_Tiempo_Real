@@ -266,16 +266,6 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
-	if (xUSB_Mutex != NULL)
-	  {
-	      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-	      // 1. Damos (liberamos) el semáforo desde la interrupción del USB
-	      xSemaphoreGiveFromISR(xUSB_Mutex, &xHigherPriorityTaskWoken);
-
-	      // 2. Si este semáforo despertó a una tarea de mayor prioridad, forzamos el cambio de contexto
-	      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-	  }
 	USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
 	USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 	return (USBD_OK);
@@ -301,6 +291,9 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
   if (hcdc->TxState != 0){
     return USBD_BUSY;
   }
+
+
+
   USBD_CDC_SetTxBuffer(&hUsbDeviceFS, Buf, Len);
   result = USBD_CDC_TransmitPacket(&hUsbDeviceFS);
   /* USER CODE END 7 */

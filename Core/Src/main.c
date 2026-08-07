@@ -70,7 +70,7 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE BEGIN PV */
 TaskHandle_t xTareaAHandle = NULL;
 TaskHandle_t xTareaBHandle = NULL;
-extern SemaphoreHandle_t xUSB_Mutex = NULL;
+SemaphoreHandle_t xUSB_Mutex = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
