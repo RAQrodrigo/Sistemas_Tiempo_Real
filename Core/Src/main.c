@@ -70,7 +70,6 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE BEGIN PV */
 TaskHandle_t xTareaAHandle = NULL;
 TaskHandle_t xTareaBHandle = NULL;
-SemaphoreHandle_t xUSB_Mutex = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,7 +80,6 @@ void StartDefaultTask(void *argument);
 /* USER CODE BEGIN PFP */
 void  vTaskA(void *pvParameters);
 void  vTaskB(void *pvParameters);
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -122,7 +120,6 @@ int main(void)
   MX_USB_DEVICE_Init();
 
   // Creamos el Semáforo Contador: Máximo 10, arranca en 0 eventos pendientes
-  xUSB_Mutex = xSemaphoreCreateMutex();
   xTaskCreate(vTaskA, "TareaA", 128, NULL, 1, &xTareaAHandle);
   xTaskCreate(vTaskB, "TareaB", 128, NULL, 1, &xTareaBHandle);
 
@@ -374,12 +371,12 @@ void vTaskA(void *pvParameters)
     while(1)
     {
         // Forzamos la corrupción enviando carácter por carácter
-    	if (xSemaphoreTake(xUSB_Mutex, portMAX_DELAY) == pdPASS) {
-    		for(int i = 0; i < lenA; i++){
-    			CDC_Transmit_FS((uint8_t*)&mensajeA[i], 1);
-            }
-    		xSemaphoreGive(xUSB_Mutex);
-    	}
+        for(int i = 0; i < lenA; i++)
+        {
+            CDC_Transmit_FS((uint8_t*)&mensajeA[i], 1);
+            // Pequeño truco: le damos un micro-delay de hardware si hace falta,
+            // pero el mismo for va a hacer que FreeRTOS las corte a la mitad.
+        }
     }
 }
 
@@ -388,15 +385,15 @@ void vTaskB(void *pvParameters)
     char mensajeB[] = "*** TAREA B EJECUTANDOSE ***\r\n";
     uint16_t lenB = sizeof(mensajeB) - 1;
 
-    while(1){
-    	if (xSemaphoreTake(xUSB_Mutex, portMAX_DELAY) == pdPASS) {
-        	for(int i = 0; i < lenB; i++) {
-            	CDC_Transmit_FS((uint8_t*)&mensajeB[i], 1);
-        	}
-        	xSemaphoreGive(xUSB_Mutex);
-    	}
-	}
+    while(1)
+    {
+        for(int i = 0; i < lenB; i++)
+        {
+            CDC_Transmit_FS((uint8_t*)&mensajeB[i], 1);
+        }
+    }
 }
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
