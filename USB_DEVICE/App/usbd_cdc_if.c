@@ -23,7 +23,7 @@
 #include "queue.h"
 #include "semphr.h"
 extern QueueHandle_t xColaFIFO;
-extern SemaphoreHandle_t xSemaforoContador;
+extern SemaphoreHandle_t xUSB_Mutex;
 #include "usbd_cdc_if.h"
 
 /* USER CODE BEGIN INCLUDE */
@@ -266,9 +266,19 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
+	if (xUSB_Mutex != NULL)
+	  {
+	      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+	      // 1. Damos (liberamos) el semáforo desde la interrupción del USB
+	      xSemaphoreGiveFromISR(xUSB_Mutex, &xHigherPriorityTaskWoken);
+
+	      // 2. Si este semáforo despertó a una tarea de mayor prioridad, forzamos el cambio de contexto
+	      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	  }
 	USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
-	  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-	  return (USBD_OK);
+	USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+	return (USBD_OK);
   /* USER CODE END 6 */
 }
 
